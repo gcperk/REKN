@@ -35,8 +35,8 @@ install.packages(c("cowplot", "googleway", "ggplot2", "ggrepel",
 #Check if files are identical 
 
 
-f1 <- "D:\\02.Contracts\\2021_NWRC\\02_data\\REKN\\data\\BurgerPorterNiles\\Log_038\\Log038aug2410H.TXT"
-f2 <- "D:\\02.Contracts\\2021_NWRC\\02_data\\REKN\\data\\BurgerPorterNiles\\Log_038\\BadRunUsed032startTime\\Log032HTime12hour\\Log032H082410bad12hour.TXT"
+f1 <- "J:\\02.Contracts\\2021_NWRC\\02_data\\REKN\\data\\BurgerPorterNiles\\Log_a2m\\LogDbA2M_18A213_111213\\MK18 18A213 reconstructed.txt"
+f2 <- "J:\\02.Contracts\\2021_NWRC\\02_data\\REKN\\data\\BurgerPorterNiles\\Log_a2m\\MK18 18A213 reconstructed.txt"
 
 inf1 <- read.delim(f1)
 inf2 <- read.delim(f2)
