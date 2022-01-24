@@ -97,5 +97,26 @@ i = 279
       labs(x = "julian date")
          
 
+    
+#########################################################  
+# Merge all tracks together: 
+library(tidyverse)
+library(foreach)
+library(data.table)
+    
+tracks <- list.files(file.path("data", "Tracks"), full.names = T)
+tracks <- tracks[-1]  
 
+trackcombo <- foreach(k = unique(tracks)) %do% {
+  
+    print(basename(k)) # = tracks[2]
+    tfile = read_xlsx(file.path(k), 
+                      col_types = c("guess", "numeric", "numeric", 
+                                    "date", "date", "numeric", "guess"))
 
+}
+
+acc <- as.data.frame(rbindlist(trackcombo))
+
+unique(acc$tag)
+write.csv(acc, file.path("data", "constructed_tracks.csv"))
