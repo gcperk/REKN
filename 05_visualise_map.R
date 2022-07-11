@@ -48,7 +48,7 @@ animate_frames(frames, width = 800, height = 800,
 ###############################################################
 
 
-
+library(RColorBrewer)
 library(dplyr)
 library(ggplot2)
 library(lubridate)
@@ -56,23 +56,32 @@ library(foreach)
 library(tidyverse)
 library(sf)
 library(leaflet)
+library(viridis)
+library(dplyr)
 
-bdat <- read.csv(file.path("data", "all_geos_merged2.csv"))
+bdat <- read.csv(file.path("data", "location_estimates_final.csv"))
+
 
 # filter data to remove NA values
 bdat <- bdat %>%
-  select(c(lon, lat, arr, dep, dur, tag, species)) %>%
-  filter(species == "rekn")
+  dplyr::select(c(id, location.long, location.lat, arrive.date, depart.date, animal.id, deploy_id))
 
-bdat <- bdat[complete.cases(bdat), ]
+
+bdat <- bdat[complete.cases(bdat), ] # note this removes the breed locations
+
 
 # calculate time differences
 bdat_sp <- bdat %>%
-  mutate(arrive = ymd_hm(arr),
-         depart = ymd_hm(dep)) %>%
+  mutate(arrive = ymd(arrive.date),
+         depart = ymd(depart.date)) %>%
   mutate(year = year(arrive)) %>%
   mutate(arr_month = month(arrive),
-         dep_month = month(depart))
+         dep_month = month(depart)) %>%
+  mutate(dur = depart -arrive) %>%
+  mutate(lat = as.numeric(location.lat), 
+         lng = location.long) %>%
+  mutate(dur_no = as.numeric(dur),
+         lng_new = lng + 360)
 
 #month_col = sort(unique(bdat_sp$arr_month))
 palette1 <- colorNumeric(palette = 'viridis', bdat_sp$arr_month, reverse = TRUE)
@@ -130,28 +139,29 @@ library(leaflet)
 
 pal <- colorFactor(
   palette = "viridis",
-  domain = unique(bdat_sp$tag))
+  domain = unique(bdat_sp$animal.id))
 
-tags <- unique(bdat_sp$tag)
+tags <- unique(bdat_sp$animal.id)
 
 
 bdat_sp1 <- bdat_sp  %>%
-  filter(tag == tags[5])
-
+  filter(animal.id == tags[21])
+bdat_sp1 
 
 palette1 <- colorNumeric(palette = 'viridis', bdat_sp$arr_month, reverse = TRUE)
+
 
 birdmap <- leaflet(bdat_sp1) %>%
   # add a dark basemap
   addProviderTiles("CartoDB.DarkMatter") %>%
   #addProviderTiles(providers$Stamen.Terrain, group = "Terrain") %>%
-  addCircleMarkers(lng = bdat_sp1$lon, lat = bdat_sp1$lat, 
+  addCircleMarkers(lng = bdat_sp1$lng, lat = bdat_sp1$lat, 
              weight = 2, color = ~palette1(bdat_sp1$arr_month), 
              #fill = TRUE,
-             radius = ~dur/10,
+             radius = ~dur_no/2,
              fillColor = ~palette1(bdat_sp1$arr_month),
-             popup = ~tag) %>%
-  addPolylines(data = bdat_sp1, lng = bdat_sp1$lon, lat = bdat_sp1$lat, 
+             popup = ~animal.id) %>%
+  addPolylines(data = bdat_sp1, lng = bdat_sp1$lng, lat = bdat_sp1$lat, 
                color = "white",  opacity = 0.1, stroke = TRUE) %>%
   addLegend("bottomleft", pal = palette1, values = ~bdat_sp1$arr_month,
             title = "Arrival Month",
