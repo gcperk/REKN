@@ -1,49 +1,3 @@
-install.packages('move')
-
-library(moveVis)
-library(move)
-library(raster)
-
-data("whitestork_data", package = "moveVis")
-
-colnames(df)
-range(df$timestamp)
-
-#>  [1] "2018-07-30 02:00:23 UTC" "2018-09-29 20:00:41 UTC" 
-#>  
-df$name <- sapply(df$`individual-local-identifier`, function(x)
-  strsplit(x, " /")[[1]][1], USE.NAMES = F)
-df$name <- gsub("-", " ", gsub("[+]", "", gsub(" ", "", df$name)))
-unique(df$name)
-
-
-m <- move(x = df[["location-long"]], y = df[["location-lat"]],
-          time = df[["timestamp"]], animal = df[["name"]],
-          proj = "+proj=longlat +datum=WGS84 +no_defs",
-          removeDuplicatedTimestamps = TRUE)
-
-
-lag <- unlist(timeLag(m, unit = "mins"))
-median(lag)
-#> [1] 5
-sd(lag)
-#> [1] 36.86127
-#> 
-#> interpolation, named align_move():
-m <- align_move(m, res = 180, digit = 0, unit = "mins")
-length(unique(timestamps(m)))
-
-get_maptypes()
-
-frames <- frames_spatial(m, trace_show = TRUE, equidistant = FALSE,
-                         map_service = "osm", map_type = "terrain_bg")
-frames_spatial()
-
-frames[[1]]
-
-animate_frames(frames, width = 800, height = 800,
-               out_file = "S2_white_storks_osm.mov", end_pause = 1)
-
 
 ###############################################################
 
@@ -290,4 +244,55 @@ outmap <- fill.map + geom_path(data=roof.loc, show.legend=FALSE, linetype = "dot
   theme(legend.box="vertical", legend.position = c(0.1, 0.25))+
   #labs(title=my_title)+
   theme(text=element_text(family="Times New Roman", size=12))
+
+
+
+## ANIMATION 
+
+#install.packages('move')
+
+library(moveVis)
+library(move)
+library(raster)
+
+data("whitestork_data", package = "moveVis")
+
+colnames(df)
+range(df$timestamp)
+
+#>  [1] "2018-07-30 02:00:23 UTC" "2018-09-29 20:00:41 UTC" 
+#>  
+df$name <- sapply(df$`individual-local-identifier`, function(x)
+  strsplit(x, " /")[[1]][1], USE.NAMES = F)
+df$name <- gsub("-", " ", gsub("[+]", "", gsub(" ", "", df$name)))
+unique(df$name)
+
+
+m <- move(x = df[["location-long"]], y = df[["location-lat"]],
+          time = df[["timestamp"]], animal = df[["name"]],
+          proj = "+proj=longlat +datum=WGS84 +no_defs",
+          removeDuplicatedTimestamps = TRUE)
+
+
+lag <- unlist(timeLag(m, unit = "mins"))
+median(lag)
+#> [1] 5
+sd(lag)
+#> [1] 36.86127
+#> 
+#> interpolation, named align_move():
+m <- align_move(m, res = 180, digit = 0, unit = "mins")
+length(unique(timestamps(m)))
+
+get_maptypes()
+
+frames <- frames_spatial(m, trace_show = TRUE, equidistant = FALSE,
+                         map_service = "osm", map_type = "terrain_bg")
+frames_spatial()
+
+frames[[1]]
+
+animate_frames(frames, width = 800, height = 800,
+               out_file = "S2_white_storks_osm.mov", end_pause = 1)
+
 
