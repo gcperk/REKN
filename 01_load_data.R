@@ -21,11 +21,19 @@ out.dir <- file.path("outputs")
 bdat <- read.csv(file.path(data.dir,"location_estimates_final.csv"))
 
 ref_dat <- read_excel(file.path("ReferenceData.xlsx")) %>%
-  dplyr::select(c(Subpop, `Original dataset`, "animal-id", "deployment-id", `Usable data set`)) %>%
+  dplyr::select(c(Subpop, `Original dataset`, "animal-id", "deployment-id", `Usable data set`, `reccomended use`)) %>%
   mutate(animal.id = `animal-id`, 
          deploy_id = `deployment-id`) %>%
-  dplyr::select(c(Subpop, `Original dataset`, animal.id,`Usable data set`))%>%
+  dplyr::select(c(Subpop, `Original dataset`, animal.id,`Usable data set`,`reccomended use`))%>%
   unique()
+
+# 
+# tt <- ref_dat %>% 
+#   filter(`reccomended use` %in% c("BNP", "WBE","NEWSTEAD"))
+# 
+# sort(unique(tt$animal.id))
+# sort(unique(bdat$animal.id))
+# 
 
 # filter data to remove NA values
 bdat <- bdat %>%
@@ -47,7 +55,8 @@ bdat_sp <- bdat %>%
 
 
 allsp <- left_join(bdat_sp, ref_dat, by = "animal.id") %>%
-  mutate(data_type = "geolocator")
+  mutate(data_type = "geolocator") %>%
+  filter(`reccomended use` != "Cant use")
 
 saveRDS(allsp, file.path(out.dir, "BNP_rekn_summary.RDS"))
 write.csv(allsp, file.path(out.dir, "BNP_rekn_compiled.csv"))
@@ -72,11 +81,12 @@ jdat  <- jdat  %>%
   mutate(arr_month = month(arrive),
          dep_month = month(depart)) %>%
   mutate(dur = depart -arrive) %>%
-  # mutate(lat = as.numeric(location.lat), 
-  #       lng = location.long) %>%
+  mutate(lat = as.numeric(location.lat), 
+         lng = location.long) %>%
   mutate(dur_no = as.numeric(dur),
          Subpop = "rosellarri")
 
+length(unique(jdat$animal.id))
 
 saveRDS(jdat, file.path(out.dir, "johnson_rose_daily.RDS"))
 
@@ -84,18 +94,24 @@ saveRDS(jdat, file.path(out.dir, "johnson_rose_daily.RDS"))
 
 # read in Rosellari GPS tags (Johnson)
 
-jgpsdat1 <- read.csv(file.path(data.dir,"REKN_GPSprocessed_2017.csv"))
+jgpsdat1 <- read.csv(file.path(data.dir,"REKN_GPSprocessed_2017.csv")) %>%
+  mutate(Lat = as.numeric(Lat),
+         Long = as.numeric(Long), 
+         Long_new = as.numeric(Long_new))
+
 jgpsdat2 <- read.csv(file.path(data.dir,"REKN_GPSprocessed_2018.csv"))
 
+#unique(jgpsdat2$FlagID)
 
-jgps <- rbind(jgpsdat1, jgpsdat2) %>%
-  filter(CRC != "OK(corrected)") %>%
+jgps <- bind_rows(jgpsdat1, jgpsdat2) %>%
+  filter(CRC %in% c(NA , "OK")) %>%
   filter(LocType_new != "Bad") %>%
   rename("animal.id" = FlagID,
          "location.lat" = Lat,
          "location.long" = Long) %>%
   mutate(`Original dataset` ="Johnson_GPS",
          data_type = "GPS")
+
 # Basic summary of individuals
 
 jgps <- jgps  %>%
@@ -107,12 +123,16 @@ jgps <- jgps  %>%
   ungroup() %>%
   mutate(depart = mdy(depart.date)) %>%
   mutate(arr_month = month(arrive),
-         dep_month = month(depart)) %>%
+         dep_month = month(depart),
+         dep_year = year(depart)) %>%
   mutate(dur = depart -arrive) %>%
-  # mutate(lat = as.numeric(location.lat), 
-  #       lng = location.long) %>%
+  mutate(lat = as.numeric(location.lat), 
+         lng = location.long) %>%
   mutate(dur_no = as.numeric(dur),
          Subpop = "rosellarri")
+
+# note some errors with the date column in raw data 
+length(unique(jgps$animal.id))
 
 
 saveRDS(jgps, file.path(out.dir, "johnson_rose_gps.RDS"))
@@ -139,7 +159,8 @@ ndat <- ndat %>%
   ungroup() %>%
   mutate(depart = ymd(depart.date)) %>%
   mutate(arr_month = month(arrive),
-         dep_month = month(depart)) %>%
+         dep_month = month(depart),
+         dep_year = year(depart)) %>%
   mutate(dur = depart -arrive) %>%
   # mutate(lat = as.numeric(location.lat), 
   #       lng = location.long) %>%
