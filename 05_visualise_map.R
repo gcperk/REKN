@@ -1,5 +1,9 @@
 
 ###############################################################
+# Data Viz/ for Red Knot migration geolocator data
+
+# written by Gen Perkins
+# last edit : 2022-07-10
 
 
 library(RColorBrewer)
@@ -14,7 +18,6 @@ library(viridis)
 library(dplyr)
 
 bdat <- read.csv(file.path("data", "location_estimates_final.csv"))
-
 
 # filter data to remove NA values
 bdat <- bdat %>%
@@ -40,57 +43,6 @@ bdat_sp <- bdat %>%
 #month_col = sort(unique(bdat_sp$arr_month))
 palette1 <- colorNumeric(palette = 'viridis', bdat_sp$arr_month, reverse = TRUE)
 
-#bdat_sf <- st_as_sf(bdat_sp, coords = c("lon","lat"))
-
-#ggplot()
-
-#mapview::mapview(bdat_sp, map.types = c("Esri.WorldShadedRelief", "OpenStreetMap.DE"), color = "grey40")
-
-library(leaflet)
-
-# basemap <- leaflet() %>%
-#   # add different provider tiles
-#   addProviderTiles(
-#     "OpenStreetMap",
-#     # give the layer a name
-#     group = "OpenStreetMap"
-#   ) %>%
-#   addProviderTiles(
-#     "Stamen.Toner",
-#     group = "Stamen.Toner"
-#   ) %>%
-#   addProviderTiles(
-#     "Stamen.Terrain",
-#     group = "Stamen.Terrain"
-#   ) %>%
-#   addProviderTiles(
-#     "Esri.WorldStreetMap",
-#     group = "Esri.WorldStreetMap"
-#   ) %>%
-#   addProviderTiles(
-#     "Wikimedia",
-#     group = "Wikimedia"
-#   ) %>%
-#   addProviderTiles(
-#     "CartoDB.Positron",
-#     group = "CartoDB.Positron"
-#   ) %>%
-#   addProviderTiles(
-#     "Esri.WorldImagery",
-#     group = "Esri.WorldImagery"
-#   ) %>%
-#   # add a layers control
-#   addLayersControl(
-#     baseGroups = c(
-#       "OpenStreetMap", "Stamen.Toner",
-#       "Stamen.Terrain", "Esri.WorldStreetMap",
-#       "Wikimedia", "CartoDB.Positron", "Esri.WorldImagery"
-#     ),
-#     # position it on the topleft
-#     position = "topleft"
-#   )
-
-
 pal <- colorFactor(
   palette = "viridis",
   domain = unique(bdat_sp$animal.id))
@@ -99,7 +51,7 @@ tags <- unique(bdat_sp$animal.id)
 
 
 bdat_sp1 <- bdat_sp  %>%
-  filter(animal.id == tags[21])
+  filter(animal.id == tags[63])
 bdat_sp1 
 
 palette1 <- colorNumeric(palette = 'viridis', bdat_sp$arr_month, reverse = TRUE)
@@ -129,23 +81,69 @@ birdmap
 birdmapall <- leaflet(bdat_sp) %>%
   # add a dark basemap
   addProviderTiles("CartoDB.DarkMatter") %>%
-  #addProviderTiles(providers$Stamen.Terrain, group = "Terrain") %>%
-  addCircleMarkers(clusterOptions = markerClusterOptions(),
-                   weight = 2, color = ~palette1(bdat_sp1$arr_month), 
-                   fill = TRUE,
-                   radius = ~dur/10,
-                   fillColor = ~palette1(bdat_sp1$arr_month))
+  addCircleMarkers(lng = bdat_sp$lng, lat = bdat_sp$lat, 
+                   weight = 2, color = ~palette1(bdat_sp$arr_month), 
+                   #fill = TRUE,
+                   radius = ~dur_no/8,
+                   fillColor = ~palette1(bdat_sp$arr_month),
+                   popup = ~animal.id) %>%
+  addPolylines(data = bdat_sp, lng = bdat_sp$lng, lat = bdat_sp$lat, 
+               color = "grey",  opacity = 0.1, stroke = TRUE) %>%
+  addLegend("bottomleft", pal = palette1, values = ~bdat_sp$arr_month,
+            title = "Arrival Month",
+            opacity = 1)
+
+birdmapall
+ #   data = bdat_sp, lng = bdat_sp$lon, lat = bdat_sp$lat)
 
 
-    
-    data = bdat_sp, lng = bdat_sp$lon, lat = bdat_sp$lat)
 
-
-
-  addPolylines(data = bdat_sp1, lng = bdat_sp1$lon, lat = bdat_sp1$lat, 
-               color = "white",  opacity = 0.1, stroke = TRUE)
+#  addPolylines(data = bdat_sp1, lng = bdat_sp1$lon, lat = bdat_sp1$lat, 
+#               color = "white",  opacity = 0.1, stroke = TRUE)
 
 birdmap
+
+
+
+
+library("leaflet")
+library("data.table")
+library("sp")
+library("rgdal")
+library("KernSmooth")
+library("magrittr")
+
+## LOAD DATA
+## Also, clean up variable names, and convert dates
+inurl <- "https://data.cityofchicago.org/api/views/22s8-eq8h/rows.csv?accessType=DOWNLOAD"
+dat <- data.table::fread(inurl) %>% 
+  setnames(., tolower(colnames(.))) %>% 
+  setnames(., gsub(" ", "_", colnames(.))) %>% 
+  .[!is.na(longitude)] %>% 
+  .[ , date := as.IDate(date, "%m/%d/%Y")] %>% 
+  .[]    
+dat.df <- as.data.frame(dat)
+## MAKE CONTOUR LINES
+## Note, bandwidth choice is based on MASS::bandwidth.nrd()
+kde <- bkde2D(dat[ , list(longitude, latitude)],
+              bandwidth=c(.0045, .0068), gridsize = c(100,100))
+CL <- contourLines(kde$x1 , kde$x2 , kde$fhat)
+
+## EXTRACT CONTOUR LINE LEVELS
+LEVS <- as.factor(sapply(CL, `[[`, "level"))
+NLEV <- length(levels(LEVS))
+
+## CONVERT CONTOUR LINES TO POLYGONS
+pgons <- lapply(1:length(CL), function(i)
+  Polygons(list(Polygon(cbind(CL[[i]]$x, CL[[i]]$y))), ID=i))
+spgons = SpatialPolygons(pgons)
+
+## Leaflet map with polygons
+leaflet(spgons) %>% addTiles() %>% 
+  addPolygons(color = heat.colors(NLEV, NULL)[LEVS])
+
+
+
 
 
 
@@ -252,6 +250,7 @@ outmap <- fill.map + geom_path(data=roof.loc, show.legend=FALSE, linetype = "dot
 #install.packages('move')
 
 library(moveVis)
+
 library(move)
 library(raster)
 
