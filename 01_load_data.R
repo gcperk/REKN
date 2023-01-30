@@ -94,83 +94,83 @@ saveRDS(jdat, file.path(out.dir, "johnson_rose_daily.RDS"))
 
 # read in Rosellari GPS tags (Johnson)
 
-jgpsdat1 <- read.csv(file.path(data.dir,"REKN_GPSprocessed_2017.csv")) %>%
-  mutate(Lat = as.numeric(Lat),
-         Long = as.numeric(Long), 
-         Long_new = as.numeric(Long_new))
-
-jgpsdat2 <- read.csv(file.path(data.dir,"REKN_GPSprocessed_2018.csv"))
+# jgpsdat1 <- read.csv(file.path(data.dir,"REKN_GPSprocessed_2017.csv")) %>%
+#   mutate(Lat = as.numeric(Lat),
+#          Long = as.numeric(Long), 
+#          Long_new = as.numeric(Long_new))
+# 
+# jgpsdat2 <- read.csv(file.path(data.dir,"REKN_GPSprocessed_2018.csv"))
 
 #unique(jgpsdat2$FlagID)
-
-jgps <- bind_rows(jgpsdat1, jgpsdat2) %>%
-  filter(CRC %in% c(NA , "OK")) %>%
-  filter(LocType_new != "Bad") %>%
-  rename("animal.id" = FlagID,
-         "location.lat" = Lat,
-         "location.long" = Long) %>%
-  mutate(`Original dataset` ="Johnson_GPS",
-         data_type = "GPS")
-
-# Basic summary of individuals
-
-jgps <- jgps  %>%
-  mutate(arrive = mdy(Date)) %>%
-  mutate(year = year(arrive)) %>%
-  mutate(arr_month = month(arrive)) %>%
-  group_by(animal.id) %>%
-  mutate(depart.date = lead(Date))%>%
-  ungroup() %>%
-  mutate(depart = mdy(depart.date)) %>%
-  mutate(arr_month = month(arrive),
-         dep_month = month(depart),
-         dep_year = year(depart)) %>%
-  mutate(dur = depart -arrive) %>%
-  mutate(lat = as.numeric(location.lat), 
-         lng = location.long) %>%
-  mutate(dur_no = as.numeric(dur),
-         Subpop = "rosellarri")
+# 
+# jgps <- bind_rows(jgpsdat1, jgpsdat2) %>%
+#   filter(CRC %in% c(NA , "OK")) %>%
+#   filter(LocType_new != "Bad") %>%
+#   rename("animal.id" = FlagID,
+#          "location.lat" = Lat,
+#          "location.long" = Long) %>%
+#   mutate(`Original dataset` ="Johnson_GPS",
+#          data_type = "GPS")
+# 
+# # Basic summary of individuals
+# 
+# jgps <- jgps  %>%
+#   mutate(arrive = mdy(Date)) %>%
+#   mutate(year = year(arrive)) %>%
+#   mutate(arr_month = month(arrive)) %>%
+#   group_by(animal.id) %>%
+#   mutate(depart.date = lead(Date))%>%
+#   ungroup() %>%
+#   mutate(depart = mdy(depart.date)) %>%
+#   mutate(arr_month = month(arrive),
+#          dep_month = month(depart),
+#          dep_year = year(depart)) %>%
+#   mutate(dur = depart -arrive) %>%
+#   mutate(lat = as.numeric(location.lat), 
+#          lng = location.long) %>%
+#   mutate(dur_no = as.numeric(dur),
+#          Subpop = "rosellarri")
 
 # note some errors with the date column in raw data 
-length(unique(jgps$animal.id))
-
-
-saveRDS(jgps, file.path(out.dir, "johnson_rose_gps.RDS"))
+# length(unique(jgps$animal.id))
+# 
+# 
+# saveRDS(jgps, file.path(out.dir, "johnson_rose_gps.RDS"))
 
 
 ##########################################################
 
 # read in REKN GPS tags (Newstead)
-
-ndat <- read.csv(file.path(data.dir,"CBBEP_Newstead_Red Knot Gulf to Arctic.csv"))
-
-ndat <- ndat %>%
-  filter(`lotek.crc.status.text` != "OK(corrected)")  %>%
-  rename("animal.id" = individual.local.identifier,
-         "location.lat" = location.lat,
-         "location.long" = location.long) %>%
-  mutate(`Original dataset` ="Newstead_GPS",
-         data_type = "GPS") %>%
-  mutate(arrive = ymd(Date)) %>%
-  mutate(year = year(arrive)) %>%
-  mutate(arr_month = month(arrive)) %>%
-  group_by(animal.id) %>%
-  mutate(depart.date = lead(Date))%>%
-  ungroup() %>%
-  mutate(depart = ymd(depart.date)) %>%
-  mutate(arr_month = month(arrive),
-         dep_month = month(depart),
-         dep_year = year(depart)) %>%
-  mutate(dur = depart -arrive) %>%
-  # mutate(lat = as.numeric(location.lat), 
-  #       lng = location.long) %>%
-  mutate(dur_no = as.numeric(dur),
-         Subpop = "West Gulf") %>%
-  filter(year <2023)
-
-
-
-saveRDS(ndat, file.path(out.dir, "newstead_rekn_gps.RDS"))
+# 
+# ndat <- read.csv(file.path(data.dir,"CBBEP_Newstead_Red Knot Gulf to Arctic.csv"))
+# 
+# ndat <- ndat %>%
+#   filter(`lotek.crc.status.text` != "OK(corrected)")  %>%
+#   rename("animal.id" = individual.local.identifier,
+#          "location.lat" = location.lat,
+#          "location.long" = location.long) %>%
+#   mutate(`Original dataset` ="Newstead_GPS",
+#          data_type = "GPS") %>%
+#   mutate(arrive = ymd(Date)) %>%
+#   mutate(year = year(arrive)) %>%
+#   mutate(arr_month = month(arrive)) %>%
+#   group_by(animal.id) %>%
+#   mutate(depart.date = lead(Date))%>%
+#   ungroup() %>%
+#   mutate(depart = ymd(depart.date)) %>%
+#   mutate(arr_month = month(arrive),
+#          dep_month = month(depart),
+#          dep_year = year(depart)) %>%
+#   mutate(dur = depart -arrive) %>%
+#   mutate(lat = as.numeric(location.lat), 
+#          lng = location.long) %>%
+#   mutate(dur_no = as.numeric(dur),
+#          Subpop = "West Gulf") %>%
+#   filter(year <2023)
+# 
+# 
+# 
+# saveRDS(ndat, file.path(out.dir, "newstead_rekn_gps.RDS"))
 
 
 ##########################################################################################

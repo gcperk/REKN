@@ -19,10 +19,15 @@ out.dir <- file.path("outputs")
 
 list.files(out.dir)
 
-rekn <- readRDS(file.path(out.dir, "BNP_rekn_summary.rds"))
+rekn <- readRDS(file.path(out.dir, "BNP_rekn_summary.rds")) 
+#rose_extra <- rekn %>% filter(animal.id == "tex_4a3")%>%
+#  dplyr::select(animal.id, year,  data_type) 
+
+#rekn <- rekn %>% filter(!animal.id == "tex_4a3") 
+
 rose <- readRDS(file.path(out.dir, "johnson_rose_daily.RDS"))
-rosegps <- readRDS(file.path(out.dir, "johnson_rose_gps.RDS"))
-rekngps <- readRDS(file.path(out.dir, "newstead_rekn_gps.RDS" ))
+#rosegps <- readRDS(file.path(out.dir, "johnson_rose_gps.RDS"))
+#rekngps <- readRDS(file.path(out.dir, "newstead_rekn_gps.RDS" ))
 
 
 
@@ -36,19 +41,20 @@ yrs <- rekn %>%
   ungroup %>%
   group_by(deploy_yr, data_type)%>%
   summarise(count = length(unique(animal.id)))
-
-yrs_gps <- rekngps %>%
-  dplyr::select(animal.id, year,  data_type) %>%
-  unique() %>%
-  group_by(animal.id, data_type) %>%
-  summarise(deploy_yr = min(year)) %>%
-  ungroup %>%
-  group_by(deploy_yr, data_type)%>%
-  summarise(count = length(unique(animal.id)))
+# 
+# yrs_gps <- rekngps %>%
+#   dplyr::select(animal.id, year,  data_type) %>%
+#   unique() %>%
+#   group_by(animal.id, data_type) %>%
+#   summarise(deploy_yr = min(year)) %>%
+#   ungroup %>%
+#   group_by(deploy_yr, data_type)%>%
+#   summarise(count = length(unique(animal.id)))
 
 
 yrs_rose <- rose %>%
   dplyr::select(animal.id, year,  data_type) %>%
+ # bind_rows(rose_extra) %>%
   unique() %>%
   group_by(animal.id, data_type) %>%
   summarise(deploy_yr = min(year)) %>%
@@ -56,29 +62,32 @@ yrs_rose <- rose %>%
   group_by(deploy_yr, data_type)%>%
   summarise(count = length(unique(animal.id)))
 
+# 
+# yrs_rose_gps <- rosegps %>%
+#   dplyr::select(animal.id, year,  data_type) %>%
+#   unique() %>%
+#   group_by(animal.id, data_type) %>%
+#   summarise(deploy_yr = min(year)) %>%
+#   ungroup %>%
+#   group_by(deploy_yr, data_type)%>%
+#   summarise(count = length(unique(animal.id)))
 
-yrs_rose_gps <- rosegps %>%
-  dplyr::select(animal.id, year,  data_type) %>%
-  unique() %>%
-  group_by(animal.id, data_type) %>%
-  summarise(deploy_yr = min(year)) %>%
-  ungroup %>%
-  group_by(deploy_yr, data_type)%>%
-  summarise(count = length(unique(animal.id)))
+#yrs <- rbind(yrs, yrs_gps) %>% mutate()%>% mutate( Subspecies = "rufa")
+#yrs_rose <- rbind(yrs_rose, yrs_rose_gps) %>% mutate( Subspecies = "roselaari")
 
-yrs <- rbind(yrs, yrs_gps) %>% mutate()%>% mutate( Subspecies = "rufa")
-yrs_rose <- rbind(yrs_rose, yrs_rose_gps) %>% mutate( Subspecies = "roselaari")
+yrs <- yrs %>% mutate()%>% mutate( Subspecies = "rufa")
+yrs_rose <- yrs_rose %>% mutate( Subspecies = "roselaari")
+
 
 allrekn <- rbind(yrs_rose, yrs)
 
 x_axis_labs <- min(allrekn[,"deploy_yr"]):max(allrekn[,"deploy_yr"])
 
 
-
 rk <- ggplot(allrekn, aes(x = as.numeric(deploy_yr), y = count, fill = data_type)) +
   facet_wrap(~Subspecies,nrow = 2, scales = "free_y")+
   geom_bar(stat = "identity") +
-  labs(x = "Deployment Year", y = "No. of Individuals") +
+  labs(x = "Year deployed", y = "No. of Individuals") +
   scale_fill_grey(start=0.7, end=0.3)+
   theme_bw() +
   scale_x_continuous(labels = x_axis_labs, breaks = x_axis_labs)
@@ -112,46 +121,67 @@ ggsave( file.path(out.dir, "rekn_deploy_yrs.jpg"))
 # ggsave( file.path(out.dir, "rekn_rose_deploy_yrs.jpg"))
 # 
 
+# number of tags used in analysis
+# 
+# tags <- rekn %>%
+#   group_by(animal.id, data_type)%>%
+#   summarise(count= n(), total_length_days = sum(dur_no, na.rm = T)) %>%
+#   ungroup()%>%
+#   mutate(deploy_local = sub("\\_.*", "", animal.id))
 
 
 
-
-
-
-
-
-
-
-# Length of tags
+# Figure 2: length of tags 
 
 tags <- rekn %>%
   group_by(animal.id, data_type)%>%
-  summarise(count= n(), total_length_days = sum(dur_no, na.rm = T))
+  summarise(count= n(), total_length_days = sum(dur_no, na.rm = T)) %>%
+  ungroup()%>%
+  mutate(deploy_local = sub("\\_.*", "", animal.id))
+
+# tagsgps <- rekngps %>%
+#   group_by(animal.id, data_type)%>%
+#   summarise(count= n(), total_length_days = sum(dur_no, na.rm = T))
 
 
-tagsgps <- rekngps %>%
-  group_by(animal.id, data_type)%>%
-  summarise(count= n(), total_length_days = sum(dur_no, na.rm = T))
-
-
-
+#tags <- rbind(tags, tagsgps)
 
 # total length of days recorded:
 
-p2 <- ggplot(tags, aes(y = total_length_days, x = reorder(animal.id, total_length_days))) +
-  facet_wrap(~data_type, nrow = 2)+
+p2 <- ggplot(tags, aes(y = total_length_days, x = reorder(animal.id, total_length_days),fill = deploy_local)) +
   geom_bar(stat = "identity")  +
-  labs(x = "Individuals", y = "No. of days")
-  #theme(axis.text.x = element_text(angle = 90))
+  labs(x = "Individuals", y = "No. of days")+
+  #scale_fill_brewer(palette = 2)+
+  scale_fill_viridis_d()+
+  theme_bw() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.2))
+
+p2
+
+ggsave( file.path(out.dir, "rekn_length_geolocators.jpg"))
 
 
+#location summary 
+
+sum = tags %>%
+  group_by(deploy_local) %>%
+  summarise(#count = n(total_length_days), 
+            tmin = min(total_length_days), 
+            tmax = max(total_length_days),
+            tmean = mean(total_length_days))
+
+sum
 
 
-
-# Roselaarri comparisons: 
-
-
-#To do.....
+# p3 <- ggplot(sum, aes(x = deploy_local, y = tmean)) +
+#   geom_bar(stat = "identity")  +
+#   #labs(x = "Individuals", y = "No. of days")+
+#   #scale_fill_brewer(palette = 2)+
+#   #scale_fill_viridis_d()+
+#   theme_bw() #+
+#  # theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.2))
+# 
+# p2
 
 
 
