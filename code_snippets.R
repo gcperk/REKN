@@ -76,7 +76,7 @@ for( i in 1:length(sp)){
 ## get list of unique bird tags
 bd_list <- unique(bdat$tag)
 
-i = 279
+i = 44
 
    ii <- bd_list[i]#Test line
    #print(i)
