@@ -14,22 +14,25 @@ library(lubridate)
 library(sp)
 library(sf)
 
-bdat <- read.csv(file.path("data", "all_geos_merged2.csv"))
+bdat <- read.csv(file.path("data", "location_estimates_final.csv"))
+#bdat <- read.csv(file.path( "location_estimates_final.csv"))
 
 # filter data to remove NA values
 bdat <- bdat %>%
-  select(c(lon, lat, arr, dep, dur, tag, species)) %>%
-  filter(species == "rekn")
+  select(c(location.long, location.lat, arrive.date, depart.date, animal.id, deploy_id))
 
 bdat <- bdat[complete.cases(bdat), ]
 
 # calculate time differences
 bdat_sp <- bdat %>%
-  mutate(arrive = ymd_hm(arr),
-         depart = ymd_hm(dep)) %>%
+  mutate(arrive = ymd(arrive.date),
+         depart = ymd(depart.date)) %>%
   mutate(year = year(arrive)) %>%
   mutate(arr_month = month(arrive),
-         dep_month = month(depart))
+         dep_month = month(depart)) %>%
+  mutate(dur = depart -arrive) %>%
+  mutate(lat = location.lat, 
+         lng = location.long)
 
 #month_col = sort(unique(bdat_sp$arr_month))
 palette1 <- colorNumeric(palette = 'viridis', unique(bdat_sp$arr_month), reverse = TRUE)
@@ -37,8 +40,8 @@ palette1 <- colorNumeric(palette = 'viridis', unique(bdat_sp$arr_month), reverse
 ui <- fluidPage(
   leafletOutput("map", width="80%", height="800px"),
    absolutePanel(top = 10, right = 10,
-                selectInput("tag", "BirdTag",
-                            unique(bdat_sp$tag)
+                selectInput("animal", "BirdTag",
+                            unique(bdat_sp$animal.id)
                 ),
                 checkboxInput("legend", "Show legend", TRUE)
   )
@@ -49,12 +52,12 @@ server <- function(input, output, session) {
   # # Reactive expression for the data subsetted to what the user selected
   #tag = "rekn_arjut_full"
    filteredData <- reactive({
-     bdat_sp[bdat_sp$tag == input$tag,]
+     bdat_sp[bdat_sp$animal.id == input$animal.id]
     # bdat_sp[bdat_sp$tag == tag,]
    })
-   
+
   output$map <- renderLeaflet({
-    leaflet() %>% 
+    leaflet() %>%
       #addTiles() %>%
       addProviderTiles("CartoDB.DarkMatter") %>%
       setView(lng = -93.85, lat = 37.45, zoom = 2) %>%
@@ -67,14 +70,14 @@ server <- function(input, output, session) {
   # # should be managed in its own observer.
    observe({
     
-    leafletProxy("map", data = filteredData()) %>%
-      clearShapes() %>%
-      #addCircles(radius = ~dur, weight = 1, color = "#777777")
-              #  fillColor = ~pal(palette1), fillOpacity = 0.7, popup = ~paste(tag)
-      addCircleMarkers(
-                   weight = 2, color = ~palette1(bdat_sp$arr_month),
-                   radius = ~dur/10,
-                   fillColor = ~palette1(bdat_sp$arr_month))
+    # leafletProxy("map", data = filteredData()) %>%
+    #   clearShapes() %>%
+    #   #addCircles(radius = ~dur, weight = 1, color = "#777777")
+    #           #  fillColor = ~pal(palette1), fillOpacity = 0.7, popup = ~paste(tag)
+    #   addCircleMarkers(
+    #                weight = 2, color = ~palette1(bdat_sp$arr_month),
+    #                #radius = ~dur/10,
+    #                fillColor = ~palette1(bdat_sp$arr_month))
 
     #               addPolylines(data = bdat_sp1, lng = bdat_sp1$lon, lat = bdat_sp1$lat,
                  #               color = "white",  opacity = 0.1, stroke = TRUE) %>%
