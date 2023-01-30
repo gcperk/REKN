@@ -1,0 +1,463 @@
+
+library(lubridate)
+library(adehabitatHR)
+library(sp)
+library(ggplot2)
+library(sf)
+library(stringr)
+library("leaflet")
+library("data.table")
+library("sp")
+library("rgdal")
+library("KernSmooth")
+library("magrittr")
+library(leaflet)
+library(RColorBrewer)
+library(readxl)
+library(foreach)
+library(tidyverse)
+library(viridis)
+library(dplyr)
+library(mapview)
+library("rnaturalearth")
+library("rnaturalearthdata")
+
+
+source("01_load_data.R")
+
+# define folder structire
+data.dir <- file.path ("data", "location_estimates")
+out.dir <- file.path("outputs")
+
+#list.files(out.dir)
+
+
+# Rufa data sets
+rekn <- readRDS(file.path(out.dir, "BNP_rekn_summary.rds")) 
+rekngps <- readRDS(file.path(out.dir, "newstead_rekn_gps.RDS" ))
+
+
+# Rose datasets
+rose <- readRDS(file.path(out.dir, "johnson_rose_daily.RDS"))
+rosegps <- readRDS(file.path(out.dir, "johnson_rose_gps.RDS"))
+
+
+
+
+
+rekn <- rekn %>% dplyr::select(animal.id, Subpop,lng, lat, arrive, depart, year,arr_month,dep_month, dur_no, data_type)
+rekngps <- rekngps %>% dplyr::select(animal.id, Subpop,lng, lat, arrive, depart, year,arr_month,dep_month, dur_no,data_type)
+
+ru <- bind_rows(rekn, rekngps)
+
+ru  <- ru  %>% 
+  mutate(Subpop1 = case_when(
+    Subpop == "SE Carribean North America" ~ "SE_US",
+    Subpop == "NorthCoast SAM" ~ "N_SA",
+    Subpop == "South East Mainland Nth AM" ~ "SE_US",
+    Subpop == "West Gulf" ~ "WGWP_SA",
+    Subpop == "TDF" ~ "TDF" ,
+    Subpop == "Uncertain" ~ "Uncertain" 
+  )) %>%
+  mutate(subspecies = "rufa")
+
+
+rose <- rose %>% dplyr::select(animal.id, Subpop,lng, lat, arrive, depart, year,arr_month,dep_month, dur_no, data_type)
+rosegps <- rosegps %>% dplyr::select(animal.id, Subpop,lng, lat, arrive, depart, year,arr_month,dep_month, dur_no,data_type)
+#rose_extra <- rose_extra %>% dplyr::select(animal.id, Subpop,lng, lat, arrive, depart, year,arr_month,dep_month, dur_no,data_type)
+
+ro <- bind_rows(rose, rosegps) %>%
+  #bind_rows(rose_extra) %>%
+  dplyr::mutate(subspecies = "roselaari",
+                Subpop1 = "roselaari")
+
+
+rkall <- bind_rows(ru, ro)
+
+
+######################################################################
+##Basic plotting 
+
+rkall <- rkall[complete.cases(rkall), ]
+rf_sf <- st_as_sf(rkall, coords = c("lng","lat"), crs = 4326, agr = "constant")
+
+world <- ne_countries(scale = "medium", returnclass = "sf")
+
+Americas <- world %>% dplyr::filter(region_un == "Americas")
+
+
+global <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_sf(data = rf_sf, size = 1, colour = "blue", alpha = 0.5) +
+  facet_wrap(~subspecies)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  xlab("Longitude") + ylab("Latitude") +
+  coord_sf(xlim = c(-170.15, -30), ylim = c(-60, 80), expand = FALSE)+
+  theme_bw()+
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+
+global 
+
+ggsave(file.path(out.dir, "rufa_rose_facet.jpg"))
+
+
+
+#####################################################################
+
+
+# leaflet mapping 
+
+
+bdat_sp <- rkall  %>% 
+  filter(animal.id %in% c( "4HE", "tex_4a3", "tex_6j3" ))
+
+
+#month_col = sort(unique(bdat_sp$arr_month))
+palette1 <- colorFactor(palette = 'viridis', bdat_sp$animal.id, reverse = TRUE)
+
+pal <- colorFactor(
+  palette = "viridis",
+  domain = unique(bdat_sp$animal.id))
+
+tags <- unique(bdat_sp$animal.id)
+
+#bdat_sp <- bdat_sp %>% dplyr::filter(animal.id == "tex_6j3")
+#bdat_sp <- bdat_sp %>% dplyr::filter(animal.id == "tex_4a3")
+#bdat_sp <- bdat_sp %>% dplyr::filter(animal.id == "4HE")
+
+birdmapall <- leaflet(bdat_sp) %>%
+  # add a dark basemap
+  #addProviderTiles("CartoDB.DarkMatter") %>%
+  addProviderTiles("CartoDB") %>%
+  addCircleMarkers(lng = bdat_sp$lng, lat = bdat_sp$lat, 
+                   weight = 2, color = ~palette1(bdat_sp$animal.id), 
+                   fill = TRUE,
+                   label = ~animal.id,
+                   radius =8, #~dur_no/6,
+                   fillColor = ~palette1(bdat_sp$animal.id)) %>%
+  #popup = ~animal.id) %>%
+  #addPolylines(data = bdat_sp, lng = bdat_sp$lng, lat = bdat_sp$lat, 
+  #             color = "grey",  opacity = 0.2, stroke = TRUE) %>%
+  addLegend("bottomleft", pal = palette1, values = ~bdat_sp$animal.id,
+            title = "Arrival Month",
+            opacity = 1)
+
+birdmapall
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+############################################################################################
+
+## Roselarri
+
+############################################################################################
+
+arose <- rose %>% dplyr::select("animal.id","data_type", "arrive" ,"year" , "arr_month",            
+                         "lat", "lng", "dur_no" ,"Subpop")
+
+rosegps <- rosegps %>% dplyr::select("animal.id","data_type", "arrive" ,"year" , "arr_month",            
+                                  "lat", "lng", "dur_no" ,"Subpop")
+
+arose <- bind_rows(arose, rosegps)
+
+jdatxy <- arose[c("lng","lat")] %>% filter(!is.na(lat)) 
+
+# run kde
+
+tdata <- data.frame(jdatxy)
+
+kde <- bkde2D(tdata,
+              bandwidth=c(.5, .5), gridsize = c(1000,1000)) # need to adjust this
+CL <- contourLines(kde$x1 , kde$x2 , kde$fhat)       
+
+
+## EXTRACT CONTOUR LINE LEVELS
+LEVS <- as.factor(sapply(CL, `[[`, "level"))
+NLEV <- length(levels(LEVS))
+
+## CONVERT CONTOUR LINES TO POLYGONS
+pgons <- lapply(1:length(CL), function(i)
+  Polygons(list(Polygon(cbind(CL[[i]]$x, CL[[i]]$y))), ID=i))
+spgons = SpatialPolygons(pgons)
+
+## Leaflet map with polygons
+leaflet(spgons) %>% addTiles() %>% 
+  addPolygons(color = heat.colors(NLEV, NULL)[LEVS])               
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Create a SpatialPointsDataFrame by defining the coordinates
+coordinates(tdata) <- c("lng", "lat")
+proj4string(tdata) <- CRS("+proj=longlat +datum=WGS84 +no_defs")
+tdfgeo <- spTransform(tdata, CRS("+init=epsg:4087")) # Transform to UTM
+
+
+kdehref500 <- kernelUD(tdfgeo, h = "href", kern = c("bivnorm"), grid = 500, extent = 2)
+kderef1000 <- kernelUD(tdfgeo, h = "href", kern = c("bivnorm"), grid = 1000, extent = 2)
+
+p = 95
+kde <- kdehref1000 
+ver <- getverticeshr(kde, p)
+ver.sf <- st_as_sf(ver)
+
+kdehref500_95 <- ver.sf
+kdehref1000_95 <- ver.sf
+mapview::mapview(kdehref1000_95 )
+mapview::mapview(kdehref500_95 )
+# doesnt work very well - issue with end of map/ leaflet 
+
+
+
+kde <- kernelUD(tdfgeo, h = "LSCV", kern = c("bivnorm"), grid = 500, extent = 2)
+kde1 <- kernelUD(tdfgeo, h = "LSCV", kern = c("bivnorm"), grid = 1000, extent = 2)
+kde2 <- kernelUD(tdfgeo, h = "LSCV", kern = c("bivnorm"), grid = 10000, extent = 100)
+
+
+lscv_1000_10 <- kde2
+lscv_500_2  <- kde
+lscv_1000_100 <- kde2
+
+p = 50
+kde <- lscv_1000_100 
+ver <- getverticeshr(kde, p)
+ver.sf <- st_as_sf(ver)
+
+kdehref500_95 <- ver.sf
+kdehref1000_95 <- ver.sf
+mapview::mapview(ver.sf )
+mapview::mapview(kdehref500_95 )
+# doesnt work very well - issue with end of map/ leaflet 
+
+
+
+
+
+saveRDS(kde, file = file.path(out.dir, paste0("rose_lscv_model.rds")))
+
+hrpc = c(95)
+
+for (p in hrpc){
+  tryCatch({
+    ver <- getverticeshr(kde, p)
+    ver.sf <- st_as_sf(ver)
+    st_write(ver.sf, file.path(out.dir, paste0( p, "_", s, "_lscv.gpkg")), delete_dsn = TRUE)
+    st_write(ver.sf, file.path(out.dir, paste0( p, "_", s, "_lsvc.shp")))
+    
+  },
+  error = function(e){
+    print( paste0("unable to generate vertices for ", p, "% vertices for ", s))
+  })
+  
+} # end of hrpc loop
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+kde2 <- bkde2D(jdatxy,
+               bandwidth=c(.045, .068), gridsize = c(1000,1000)) # need to adjust this
+CL2 <- contourLines(kde2$x1 , kde2$x2 , kde2$fhat)       
+
+## EXTRACT CONTOUR LINE LEVELS
+LEVS2 <- as.factor(sapply(CL2, `[[`, "level"))
+NLEV2 <- length(levels(LEVS2))
+
+## CONVERT CONTOUR LINES TO POLYGONS
+pgons2 <- lapply(1:length(CL2), function(i)
+  Polygons(list(Polygon(cbind(CL2[[i]]$x, CL2[[i]]$y))), ID=i))
+spgons2 = SpatialPolygons(pgons2)
+
+## Leaflet map with polygons
+leaflet(spgons2) %>% addTiles() %>% 
+  addPolygons(color = heat.colors(NLEV2, NULL)[LEVS2])               
+
+##############
+
+
+
+kde3 <- bkde2D(jdatxy,
+               bandwidth=c(.45, .68), gridsize = c(1000,1000)) # need to adjust this
+CL3 <- contourLines(kde3$x1 , kde3$x2 , kde3$fhat)       
+
+## EXTRACT CONTOUR LINE LEVELS
+LEVS3 <- as.factor(sapply(CL3, `[[`, "level"))
+NLEV3 <- length(levels(LEVS3))
+
+## CONVERT CONTOUR LINES TO POLYGONS
+pgons3 <- lapply(1:length(CL3), function(i)
+  Polygons(list(Polygon(cbind(CL3[[i]]$x, CL3[[i]]$y))), ID=i))
+spgons3 = SpatialPolygons(pgons3)
+
+## Leaflet map with polygons
+leaflet(spgons3) %>% addTiles() %>% 
+  addPolygons(color = heat.colors(NLEV3, NULL)[LEVS3])               
+
+
+# filter data to remove NA values
+jdat <- jdat %>% dplyr::select(c(Date, Median.long, Median.lat, Birdid))
+
+
+
+######################################
+
+
+kde4 <- bkde2D(jdatxy,
+               bandwidth=c(.5, .5), gridsize = c(1000,1000)) # need to adjust this
+CL4 <- contourLines(kde4$x1 , kde4$x2 , kde4$fhat)       
+
+## EXTRACT CONTOUR LINE LEVELS
+LEVS4 <- as.factor(sapply(CL4, `[[`, "level"))
+NLEV4 <- length(levels(LEVS4))
+
+## CONVERT CONTOUR LINES TO POLYGONS
+pgons4 <- lapply(1:length(CL4), function(i)
+  Polygons(list(Polygon(cbind(CL4[[i]]$x, CL4[[i]]$y))), ID=i))
+spgons4 = SpatialPolygons(pgons4)
+
+## Leaflet map with polygons
+leaflet(spgons4) %>% addTiles() %>% 
+  addPolygons(color = heat.colors(NLEV4, NULL)[LEVS4])               
+
+
+
+###################################################
+
+
+kde5 <- bkde2D(jdatxy,
+               bandwidth=c(.05, .05), gridsize = c(10000,10000)) # need to adjust this
+CL5 <- contourLines(kde5$x1 , kde5$x2 , kde5$fhat)       
+
+## EXTRACT CONTOUR LINE LEVELS
+LEVS5 <- as.factor(sapply(CL5, `[[`, "level"))
+NLEV5 <- length(levels(LEVS5))
+
+## CONVERT CONTOUR LINES TO POLYGONS
+pgons5 <- lapply(1:length(CL5), function(i)
+  Polygons(list(Polygon(cbind(CL5[[i]]$x, CL5[[i]]$y))), ID=i))
+spgons5 = SpatialPolygons(pgons5)
+
+## Leaflet map with polygons
+leaflet(spgons5) %>% addTiles() %>% 
+  addPolygons(color = heat.colors(NLEV5, NULL)[LEVS4])               
+
+
+# finer grain size = less generalise i.e focus on the points and not areas. 10000 is too fine. 
+
+
+
+## Leaflet map with polygons
+leaflet(spgons3) %>% addTiles() %>% 
+  addPolygons(color = heat.colors(NLEV3, NULL)[LEVS3])     
+
+leaflet() %>%
+  addTiles %>%
+  addPolygons(spgons3)
+
+
+Refs
+
+https://gis.stackexchange.com/questions/168886/r-how-to-build-heatmap-with-the-leaflet-package
+
+
+
+
+### COMPARE THE OUTPUTS 
+
+
+
+## bandwidth=c(.0045, .0068), gridsize = c(10000,10000))
+## Leaflet map with polygons
+leaflet(spgons) %>% addTiles() %>% 
+  addPolygons(color = heat.colors(NLEV, NULL)[LEVS])   
+# a bit too fine 
+
+
+
+##  bandwidth=c(.045, .068), gridsize = c(1000,1000))
+## Leaflet map with polygons
+leaflet(spgons2) %>% addTiles() %>% 
+  addPolygons(color = heat.colors(NLEV2, NULL)[LEVS2])               
+# filters out the 
+
+
+## bandwidth=c(.45, .68), gridsize = c(1000,1000)) 
+leaflet(spgons3) %>% addTiles() %>% 
+  addPolygons(color = heat.colors(NLEV3, NULL)[LEVS3])               
+
+## bandwidth=c(.5, .5), gridsize = c(1000,1000))
+leaflet(spgons4) %>% addTiles() %>% 
+  addPolygons(color = heat.colors(NLEV4, NULL)[LEVS4])               
+
+
+#bandwidth=c(.05, .05), gridsize = c(10000,10000))
+leaflet(spgons5) %>% addTiles() %>% 
+  addPolygons(color = heat.colors(NLEV5, NULL)[LEVS4])   
+
+
+
+
+
+
+
+
