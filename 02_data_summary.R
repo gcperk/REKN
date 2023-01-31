@@ -16,8 +16,9 @@ source("01_load_data.R")
 # define folder structire
 data.dir <- file.path ("data", "location_estimates")
 out.dir <- file.path("outputs")
+out.plots <- file.path("outputs", "final")
 
-list.files(out.dir)
+#list.files(out.dir)
 
 rekn <- readRDS(file.path(out.dir, "BNP_rekn_summary.rds")) 
 #rose_extra <- rekn %>% filter(animal.id == "tex_4a3")%>%
@@ -84,18 +85,25 @@ allrekn <- rbind(yrs_rose, yrs)
 x_axis_labs <- min(allrekn[,"deploy_yr"]):max(allrekn[,"deploy_yr"])
 
 
-rk <- ggplot(allrekn, aes(x = as.numeric(deploy_yr), y = count, fill = data_type)) +
+rk <- ggplot(allrekn, aes(x = as.numeric(deploy_yr), y = count, fill = "light grey")) +
   facet_wrap(~Subspecies,nrow = 2, scales = "free_y")+
-  geom_bar(stat = "identity") +
+  geom_bar(stat = "identity",show.legend = FALSE) +
   labs(x = "Year deployed", y = "No. of Individuals") +
-  scale_fill_grey(start=0.7, end=0.3)+
+  #scale_fill_grey(start=0.7, end=0.3)+
   theme_bw() +
+  scale_fill_grey(start=0.7, end=0.7)+
   scale_x_continuous(labels = x_axis_labs, breaks = x_axis_labs)
 #theme_classic()
 rk
 
-ggsave( file.path(out.dir, "rekn_deploy_yrs.jpg"))
+#ggsave( file.path(out.dir, "rekn_deploy_yrs.jpg"))
 
+
+jpeg(file.path(out.plots,"rekn_deploy_yrs.jpg"), width = 15, height = 10,units = "cm", res = 210)
+# 2. Create the plot
+rk
+# 3. Close the file
+dev.off()
 
 # Out put individual plots 
 # 
@@ -158,7 +166,20 @@ p2 <- ggplot(tags, aes(y = total_length_days, x = reorder(animal.id, total_lengt
 
 p2
 
-ggsave( file.path(out.dir, "rekn_length_geolocators.jpg"))
+ggsave( file.path(out.plots, "rekn_length_geolocators1.jpg"))
+
+
+
+jpeg(file.path(out.plots,"rekn_length_geolocators.jpg"), width = 20, height = 10,units = "cm", res = 210)
+# 2. Create the plot
+p2
+# 3. Close the file
+dev.off()
+
+
+
+
+
 
 
 #location summary 
