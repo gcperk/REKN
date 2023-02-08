@@ -29,6 +29,7 @@ source("01_load_data.R")
 # define folder structire
 data.dir <- file.path ("data", "location_estimates")
 out.dir <- file.path("outputs")
+out.plots <- file.path("outputs", "final")
 
 list.files(out.dir)
 
@@ -38,15 +39,16 @@ rekn <- readRDS(file.path(out.dir, "BNP_rekn_summary.rds"))
 
 #rekn <- rekn %>% filter(!animal.id == "tex_4a3") 
 
-rekngps <- readRDS(file.path(out.dir, "newstead_rekn_gps.RDS" ))
+#rekngps <- readRDS(file.path(out.dir, "newstead_rekn_gps.RDS" ))
 
 
 
 
 rekn <- rekn %>% dplyr::select(animal.id, Subpop,lng, lat, arrive, depart, year,arr_month,dep_month, dur_no, data_type)
-rekngps <- rekngps %>% dplyr::select(animal.id, Subpop,lng, lat, arrive, depart, year,arr_month,dep_month, dur_no,data_type)
+#rekngps <- rekngps %>% dplyr::select(animal.id, Subpop,lng, lat, arrive, depart, year,arr_month,dep_month, dur_no,data_type)
 
-ru <- bind_rows(rekn, rekngps)
+#ru <- bind_rows(rekn, rekngps)
+ru <- rekn
 
 ru  <- ru  %>% 
   mutate(Subpop1 = case_when(
@@ -87,10 +89,36 @@ world <- ne_countries(scale = "medium", returnclass = "sf")
 Americas <- world %>% 
   dplyr::filter(region_un == "Americas")
 
+# entire north America 
+global <- ggplot(data = Americas) +
+  geom_sf(color = "grey") +
+  geom_sf(data = rf_sf, size = 2, colour = "dark blue") +
+  #facet_wrap(~Subpop1)+
+  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
+  xlab("Longitude") + ylab("Latitude") +
+  coord_sf(xlim = c(-170.15, -30), ylim = c(-60, 80), expand = FALSE)+
+  theme_bw()+
+  theme(axis.text.x=element_blank(),
+        axis.text.y=element_blank())
+
+global
+
+jpeg(file.path(out.plots,"rufa_map1.jpg"), width = 25, height = 25,units = "cm", res = 210)
+# 2. Create the plot
+global 
+# 3. Close the file
+dev.off()
+
+
+#ggsave(file.path(out.dir, "rufa_map.jpg"))
+
+
+
+# facet maps
 
 global <- ggplot(data = Americas) +
   geom_sf(color = "grey") +
-  geom_sf(data = rf_sf, size = 2, colour = "blue") +
+  geom_sf(data = rf_sf, size = 1.75, colour = " dark blue") +
   facet_wrap(~Subpop1)+
  # geom_point(ru, aes(x = lng, y = lat), size = 4) +
   xlab("Longitude") + ylab("Latitude") +
@@ -100,8 +128,14 @@ global <- ggplot(data = Americas) +
         axis.text.y=element_blank())
 
 global 
-ggsave(file.path(out.dir, "rufa_map.jpg"))
-ggsave(file.path(out.dir, "rufa_map_facet.jpg"))
+
+#ggsave(file.path(out.dir, "rufa_map_facet.jpg"))
+
+jpeg(file.path(out.plots,"rufa_map_facet.jpg"), width = 30, height = 25,units = "cm", res = 210)
+# 2. Create the plot
+global 
+# 3. Close the file
+dev.off()
 
 
 
