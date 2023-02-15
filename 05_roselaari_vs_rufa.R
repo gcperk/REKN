@@ -28,28 +28,21 @@ source("01_load_data.R")
 # define folder structire
 data.dir <- file.path ("data", "location_estimates")
 out.dir <- file.path("outputs")
-
-#list.files(out.dir)
+out.plots <- file.path("outputs", "final")
 
 
 # Rufa data sets
 rekn <- readRDS(file.path(out.dir, "BNP_rekn_summary.rds")) 
-rekngps <- readRDS(file.path(out.dir, "newstead_rekn_gps.RDS" ))
-
 
 # Rose datasets
 rose <- readRDS(file.path(out.dir, "johnson_rose_daily.RDS"))
-rosegps <- readRDS(file.path(out.dir, "johnson_rose_gps.RDS"))
-
-
-
 
 
 rekn <- rekn %>% dplyr::select(animal.id, Subpop,lng, lat, arrive, depart, year,arr_month,dep_month, dur_no, data_type)
-rekngps <- rekngps %>% dplyr::select(animal.id, Subpop,lng, lat, arrive, depart, year,arr_month,dep_month, dur_no,data_type)
+#rekngps <- rekngps %>% dplyr::select(animal.id, Subpop,lng, lat, arrive, depart, year,arr_month,dep_month, dur_no,data_type)
 
-ru <- bind_rows(rekn, rekngps)
-
+#ru <- bind_rows(rekn, rekngps)
+ru <- rekn
 ru  <- ru  %>% 
   mutate(Subpop1 = case_when(
     Subpop == "SE Carribean North America" ~ "SE_US",
@@ -63,10 +56,9 @@ ru  <- ru  %>%
 
 
 rose <- rose %>% dplyr::select(animal.id, Subpop,lng, lat, arrive, depart, year,arr_month,dep_month, dur_no, data_type)
-rosegps <- rosegps %>% dplyr::select(animal.id, Subpop,lng, lat, arrive, depart, year,arr_month,dep_month, dur_no,data_type)
-#rose_extra <- rose_extra %>% dplyr::select(animal.id, Subpop,lng, lat, arrive, depart, year,arr_month,dep_month, dur_no,data_type)
 
-ro <- bind_rows(rose, rosegps) %>%
+ro <- rose %>%
+#ro <- bind_rows(rose, rosegps) %>%
   #bind_rows(rose_extra) %>%
   dplyr::mutate(subspecies = "roselaari",
                 Subpop1 = "roselaari")
@@ -84,7 +76,6 @@ rf_sf <- st_as_sf(rkall, coords = c("lng","lat"), crs = 4326, agr = "constant")
 world <- ne_countries(scale = "medium", returnclass = "sf")
 
 Americas <- world %>% dplyr::filter(region_un == "Americas")
-
 
 global <- ggplot(data = Americas) +
   geom_sf(color = "grey") +
