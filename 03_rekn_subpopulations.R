@@ -17,12 +17,13 @@ library(viridis)
 library(dplyr)
 library(mapview)
 library("rnaturalearth")
-library("rnaturalearthdata")
+library("rnaturalearthdata")#
+
 #library(spData)
 #library(spDataLarge)
 library(tmap)    # for static and interactive maps
-
-
+#devtools::install_github("ropensci/rnaturalearthhires")
+library("rnaturalearthhires")#
 
 source("01_load_data.R")
 
@@ -31,7 +32,7 @@ data.dir <- file.path ("data", "location_estimates")
 out.dir <- file.path("outputs")
 out.plots <- file.path("outputs", "final")
 
-list.files(out.dir)
+#list.files(out.dir)
 
 rekn <- readRDS(file.path(out.dir, "BNP_rekn_summary.rds"))
 #rose_extra <- rekn %>% filter(animal.id == "tex_4a3")%>%
@@ -40,9 +41,6 @@ rekn <- readRDS(file.path(out.dir, "BNP_rekn_summary.rds"))
 #rekn <- rekn %>% filter(!animal.id == "tex_4a3") 
 
 #rekngps <- readRDS(file.path(out.dir, "newstead_rekn_gps.RDS" ))
-
-
-
 
 rekn <- rekn %>% dplyr::select(animal.id, Subpop,lng, lat, arrive, depart, year,arr_month,dep_month, dur_no, data_type)
 #rekngps <- rekngps %>% dplyr::select(animal.id, Subpop,lng, lat, arrive, depart, year,arr_month,dep_month, dur_no,data_type)
@@ -70,6 +68,27 @@ rpop <- ru %>%
 
 
 write.csv(ru, file.path(out.dir,"rekn_rufa_subpop.csv"))
+
+########################################################
+## generate a table for wintering states per coutry, stop over usage / duration
+
+ru_stats <- read.csv(file.path(out.dir, "BNP_rekn_compiled_state_country.csv"))
+
+rucon <- ru_stats %>% 
+  group_by(Subpop, country) %>%
+  summarise(mean_duration = round(mean(dur_no),0), n = n())
+
+
+
+rustate <- ru_stats %>% 
+  group_by(Subpop, country, state, arr_month) %>%
+  summarise(mean_duration = mean(dur_no), n = n())
+  
+
+write.csv(rustate, file.path(out.dir,"rekn_rufa_subpop_state_country_arrival.csv"))
+
+
+
 
 ######################################################################
 ##Basic plotting 
@@ -115,7 +134,6 @@ dev.off()
 
 
 # facet maps
-
 global <- ggplot(data = Americas) +
   geom_sf(color = "grey") +
   geom_sf(data = rf_sf, size = 1.75, colour = " dark blue") +
@@ -148,7 +166,8 @@ rekn <- read.csv(file.path(out.dir, "rekn_rufa_full_locations.csv"))
 rekn <- rekn %>% 
   filter(Subpop1 %in% c( "SE_US" ,"N_SA","WGWP_SA" ,"TDF" )) %>%
   filter(!is.na(lat)) %>%
-  filter(arr_month %in% c(4,5,6,7,8,9,10,11))
+  filter(arr_month %in% c(4,5,6,7,8,9,10,11)) %>%
+  dplyr::rename("subpopulation" = Subpop1)
 
 
 rf_sf <- st_as_sf(rekn, coords = c("lng","lat"), crs = 4326, agr = "constant")
@@ -161,7 +180,7 @@ Americas <- world %>%
 
 global <- ggplot(data = Americas) +
   geom_sf(color = "grey") +
-  geom_sf(data = rf_sf , aes(color = Subpop1), alpha = 0.5, size = 1) +
+  geom_sf(data = rf_sf , aes(color = subpopulation), alpha = 0.5, size = 1) +
   facet_wrap(~arr_month, nrow = 2)+
   scale_color_viridis_d() +
   # geom_point(ru, aes(x = lng, y = lat), size = 4) +
@@ -169,12 +188,18 @@ global <- ggplot(data = Americas) +
   coord_sf(xlim = c(-125.15, -35), ylim = c(-60, 75), expand = FALSE)+
   theme_minimal()+
   theme(axis.text.x=element_blank(),
-        axis.text.y=element_blank())
+        axis.text.y=element_blank(),
+        legend.text=element_text(size=12))+
+  guides(color = guide_legend(override.aes = list(size = 6,alpha = 1)))
 
+#global 
+
+jpeg(file.path(out.plots,"rufa_subpop_month_facet1.jpg"), width = 30, height = 25,units = "cm", res = 210)
+# 2. Create the plot
 global 
-
-
-ggsave(file.path(out.dir, "rufa_subpop_month_facet.jpg"))
+# 3. Close the file
+dev.off()
+#ggsave(file.path(out.dir, "rufa_subpop_month_facet.jpg"))
 
 
 ############# Version 2: 
@@ -186,7 +211,7 @@ august  <- rekn %>% filter(arr_month == 8)
 september <- rekn %>% filter(arr_month == 9)
 
 
-moi <- september
+moi <- june
 
 rf_sf <- st_as_sf(moi, coords = c("lng","lat"), crs = 4326, agr = "constant")
 
@@ -198,8 +223,8 @@ Americas <- world %>%
 
 global <- ggplot(data = Americas) +
   geom_sf(color = "grey") +
-  geom_sf(data = rf_sf, aes(color = Subpop1)) +
-  facet_wrap(~Subpop1, nrow = 1)+
+  geom_sf(data = rf_sf, aes(color = subpopulation)) +
+  facet_wrap(~subpopulation, nrow = 1)+
   #facet_grid(Subpop1~arr_month)+
   scale_color_viridis_d() +
   # geom_point(ru, aes(x = lng, y = lat), size = 4) +
@@ -209,13 +234,18 @@ global <- ggplot(data = Americas) +
   theme(axis.text.x=element_blank(),
        axis.text.y=element_blank(),
          legend.position="none")+
-  ggtitle("September")
+  ggtitle("June")
 
 global 
 
+ggsave(file.path(out.plots, "rufa_subpop_june_facet.jpg"))
 
-ggsave(file.path(out.dir, "rufa_subpop_september_facet.jpg"))
-
+jpeg(file.path(out.plots,"rufa_subpop_september_facet.jpg"), width = 30, height = 15,units = "cm", res = 210)
+# 2. Create the plot
+global 
+# 3. Close the file
+dev.off()
+#ggsave(file.path(out.dir, "rufa_subpop_month_facet.jpg"))
 
 
 
@@ -237,7 +267,7 @@ rekn <- rekn %>%
 
 sp <- unique(rekn$Subpop1)
 
-spp <- sp[4]
+spp <- sp[3]
 
 spp
 
