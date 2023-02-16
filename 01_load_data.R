@@ -15,7 +15,6 @@ library(readxl)
 data.dir <- file.path ("data", "location_estimates")
 out.dir <- file.path("outputs")
 
-
 # read in and format REKN data (Burger/Niles/Porter)
 
 bdat <- read.csv(file.path(data.dir,"location_estimates_final.csv"))
